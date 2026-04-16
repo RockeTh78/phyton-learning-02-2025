@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/thomashoche/DEV/phyton-learning-02-2025/travel-blog/.vscode)",
+      "Bash(echo '{\"python.defaultInterpreterPath\": \"${workspaceFolder}/travel-blog/.venv/bin/python\"}')",
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(git commit *)",
+      "WebFetch(domain:web-production-3dc24b.up.railway.app)",
+      "Bash(git add *)",
+      "Bash(git push *)",
+      "Read(//Users/thomashoche/.claude/**)",
+      "Bash(pip install *)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(.venv/bin/python -c \"from app import app, init_db; init_db\\(\\); print\\('OK'\\)\")"
+    ],
+    "additionalDirectories": [
+      "/Users/thomashoche/.claude"
+    ]
+  }
+}
