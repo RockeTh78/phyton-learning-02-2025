@@ -212,15 +212,41 @@ Create every file fresh. Required files:
 4. test_endpoint http://localhost:8080/login
 5. Kill Flask: pkill -f "python app.py" || true
 
-### Step 5 — Git setup
+### Step 5 — Git setup & GitHub push
 1. git init
-2. git add -A && git commit -m "Initial commit: {project_name}"
+2. Create .gitignore
+3. git add -A && git commit -m "Initial commit: <project_name>"
+4. Create GitHub repo:
+   gh repo create <github_user>/<repo_name> --public --source=. --remote=origin --push
+   (repo_name = requirements.deployment.github_repo or project_name)
+   If gh is not installed or not authenticated, report this clearly and skip.
 
-### Step 6 — Final report (no tool calls)
-- Files created
-- Test results
-- How to run locally
-- Railway deployment steps
+### Step 6 — Railway deployment
+After GitHub push succeeds, deploy via Railway CLI:
+1. Check Railway CLI is available: railway --version
+2. Link to new Railway project:
+   railway init --name <project_name>
+3. Set required environment variables one by one:
+   railway variables set ANTHROPIC_API_KEY=<from local env or placeholder>
+   railway variables set SECRET_KEY=<random 32-char hex string>
+   railway variables set BLOG_PASSWORD=admin
+   railway variables set STORAGE_PATH=/data
+4. Add persistent volume (Railway CLI v4+):
+   railway volume add --mount /data
+   (If this command fails, note that the user must add the volume manually in the Railway dashboard)
+5. Deploy:
+   railway up --detach
+6. Get the deployment URL:
+   railway domain
+   Then test_endpoint on the returned URL + /login
+
+### Step 7 — Final report (no tool calls)
+- All files created
+- Local test results (HTTP status codes)
+- GitHub repo URL
+- Railway deployment URL
+- Any steps that failed and require manual action
+- Environment variables still needing real values (ANTHROPIC_API_KEY if placeholder was used)
 
 ## CODE STANDARDS
 - Every route that modifies data: @login_required
@@ -235,6 +261,11 @@ Create every file fresh. Required files:
 - i18n: data-i18n attribute on all UI strings, I18N dict in base.html JS
 - Login: session['logged_in'], BLOG_PASSWORD env var, default 'admin'
 - Gunicorn: --workers 2 --timeout 180
+- GitHub: use `gh repo create <user>/<repo> --public --source=. --remote=origin --push`
+- Railway: use `railway init --name <project>`, then `railway variables set KEY=VALUE`, then `railway up --detach`
+- Read local ANTHROPIC_API_KEY with `echo $ANTHROPIC_API_KEY` before setting in Railway
+- Never use interactive prompts — always use --yes, --detach, --non-interactive flags where available
+- If CLI tools are missing or unauthenticated, report clearly and skip gracefully
 """).strip()
 
 

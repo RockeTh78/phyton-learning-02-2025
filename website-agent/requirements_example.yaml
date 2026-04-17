@@ -18,3 +18,7 @@ style:
 deployment:
   platform: "railway"
   port: 8080
+  github_user: "RockeTh78"   # GitHub username for repo creation
+  # github_repo: ""           # optional: repo name (default: project_name)
+  # railway_env_vars:         # optional: extra env vars to set in Railway
+  #   GOOGLE_PLACES_API_KEY: "..."

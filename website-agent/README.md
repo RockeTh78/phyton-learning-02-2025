@@ -6,11 +6,11 @@ Flask web application, runs local tests, and prepares it for Railway deployment.
 ## How it works
 
 1. **Reads** your `requirements.yaml` (topic, features, colors, etc.)
-2. **Studies** the reference travel blog at `../travel-blog/` to understand the patterns
-3. **Generates** a full Flask app adapted to your requirements in `output/<project_name>/`
-4. **Tests** it locally (installs deps, starts Flask, hits endpoints)
-5. **Sets up git** (init + initial commit)
-6. **Reports** what was created and any remaining steps
+2. **Generates** a full Flask app from scratch in `output/<project_name>/`
+3. **Tests** it locally (installs deps, starts Flask, hits endpoints)
+4. **Creates** a GitHub repo and pushes the code (`gh` CLI)
+5. **Deploys** to Railway and sets all environment variables (`railway` CLI)
+6. **Reports** the live URL and any remaining steps
 
 ## Prerequisites
 
@@ -18,10 +18,19 @@ Flask web application, runs local tests, and prepares it for Railway deployment.
 pip install anthropic pyyaml requests
 ```
 
-You need an `ANTHROPIC_API_KEY` in your environment:
+Three CLIs must be installed and authenticated:
 
 ```bash
+# 1. Anthropic API key
 export ANTHROPIC_API_KEY=sk-ant-...
+
+# 2. GitHub CLI — https://cli.github.com
+brew install gh
+gh auth login
+
+# 3. Railway CLI — https://docs.railway.app/guides/cli
+brew install railway
+railway login
 ```
 
 ## Quick Start
@@ -64,6 +73,7 @@ style:
 deployment:
   platform: "railway"
   port: 8080
+  github_user: "RockeTh78"    # your GitHub username
 ```
 
 ## Generated file structure
@@ -89,18 +99,16 @@ output/<project_name>/
     style.css             # Full responsive CSS
 ```
 
-## Deploying to Railway
+## Deployment
 
-1. Create a new Railway project and link a GitHub repo
-2. Push the generated project to that repo
-3. Add a **Volume** mounted at `/data`
-4. Set these environment variables in Railway:
-   - `ANTHROPIC_API_KEY` — your Anthropic key
-   - `BLOG_PASSWORD` — login password
-   - `SECRET_KEY` — Flask session secret (random string)
-   - `STORAGE_PATH` — `/data` (matches Railway volume)
-   - Any affiliate IDs from `.env.example`
-5. Railway will auto-deploy on push
+The agent handles everything automatically:
+- Creates a public GitHub repo under your `github_user`
+- Pushes the generated code
+- Runs `railway init`, sets all env vars, runs `railway up`
+- Returns the live Railway URL
+
+The only thing you may need to add manually is a **Railway Volume** at `/data`
+(Railway CLI v4 supports `railway volume add --mount /data`, but dashboard is faster).
 
 ## Architecture
 
