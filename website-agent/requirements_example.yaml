@@ -1,0 +1,20 @@
+project_name: "recipe-blog"
+topic: "KI-Rezeptblog"
+description: "Blog für selbst kreierte Rezepte mit KI-generierten Beschreibungen aus Fotos"
+language: "de"  # primary language
+
+features:
+  - "Rezepte aus Fotos mit KI generieren (Zutaten, Anleitung, Tipps)"
+  - "Mehrsprachig DE/EN/FR"
+  - "Login-Schutz für Uploads"
+  - "Affiliate-Links zu Kochutensilien (Amazon)"
+  - "Mobiloptimiert"
+
+style:
+  primary_color: "#e63946"
+  theme: "warm, appetizing, modern"
+  font: "Georgia, serif"  # optional, override default font
+
+deployment:
+  platform: "railway"
+  port: 8080
