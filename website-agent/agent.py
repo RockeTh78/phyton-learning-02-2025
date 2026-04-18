@@ -29,7 +29,7 @@ REFERENCE_BLOG = Path("/Users/thomashoche/DEV/phyton-learning-02-2025/travel-blo
 
 # ─── Model ────────────────────────────────────────────────────────────────────
 
-MODEL = "claude-opus-4-6"
+MODEL = "claude-sonnet-4-6"
 
 # ─── Tool Schemas ─────────────────────────────────────────────────────────────
 
