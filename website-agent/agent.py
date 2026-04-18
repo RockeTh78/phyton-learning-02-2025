@@ -478,7 +478,7 @@ def run_agent(requirements: dict, project_dir: Path) -> None:
         try:
             response = client.messages.create(
                 model=MODEL,
-                max_tokens=8096,
+                max_tokens=16000,
                 system=SYSTEM_PROMPT,
                 tools=TOOLS,
                 messages=messages,
@@ -528,10 +528,19 @@ def run_agent(requirements: dict, project_dir: Path) -> None:
                 result_preview = str(result)[:200]
                 print(f"  Result: {result_preview}")
 
+                # Truncate large results in history to keep context small.
+                # create_file / read_file results can be 10k+ chars — we only
+                # need the first line (OK/ERROR status) in the history.
+                result_str = str(result)
+                if tool_name in ("create_file", "append_to_file", "read_file") and len(result_str) > 300:
+                    result_for_history = result_str[:300] + "\n... [content truncated in history]"
+                else:
+                    result_for_history = result_str
+
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
-                    "content": str(result),
+                    "content": result_for_history,
                 })
 
             # Feed results back into conversation
