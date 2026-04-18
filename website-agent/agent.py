@@ -319,12 +319,12 @@ Create every file fresh. Required files:
   templates/login.html - Simple login form
   static/style.css     - Fresh CSS matching the requested theme and colors
 
-### Step 4 — Install & test locally
+### Step 4 — Install & syntax check (NO running server)
 1. pip install -r requirements.txt
-2. Start Flask: ANTHROPIC_API_KEY=dummy python app.py & sleep 3
-3. test_endpoint http://localhost:8080/
-4. test_endpoint http://localhost:8080/login
-5. Kill Flask: pkill -f "python app.py" || true
+2. Syntax check only — do NOT start the server:
+   python -c "import app; print('OK')"
+   (If ImportError: fix the error, do NOT try to start Flask)
+3. Skip test_endpoint entirely — the app will be tested on Railway after deploy.
 
 ### Step 5 — Git setup & GitHub push
 1. git init
