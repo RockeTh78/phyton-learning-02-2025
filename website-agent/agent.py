@@ -489,8 +489,25 @@ def run_agent(requirements: dict, project_dir: Path) -> None:
             time.sleep(min(2 ** iteration, 60))
             continue
 
-        # Add assistant response to conversation history
-        messages.append({"role": "assistant", "content": response.content})
+        # Add assistant response to conversation history — but prune large
+        # tool_use inputs (e.g. full file contents in create_file calls) so
+        # the context doesn't blow up over many iterations.
+        pruned_content = []
+        for block in response.content:
+            if block.type == "tool_use" and block.name in ("create_file", "append_to_file"):
+                # Keep only path + truncated content to save tokens
+                pruned_input = dict(block.input)
+                if "content" in pruned_input and len(pruned_input["content"]) > 200:
+                    pruned_input["content"] = pruned_input["content"][:200] + "... [truncated]"
+                pruned_content.append({
+                    "type": "tool_use",
+                    "id": block.id,
+                    "name": block.name,
+                    "input": pruned_input,
+                })
+            else:
+                pruned_content.append(block)
+        messages.append({"role": "assistant", "content": pruned_content})
 
         # Print any text blocks from the assistant
         for block in response.content:
