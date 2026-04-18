@@ -339,8 +339,10 @@ Create every file fresh. Required files:
 After GitHub push succeeds, deploy via Railway CLI:
 1. Check Railway CLI is available: railway --version
 2. Link to new Railway project:
-   railway init --name <project_name> --team "rocketh78's Projects"
-   (If --team flag fails, try without it)
+   railway init --name <project_name>
+   If it fails with "workspace required", try:
+   railway link --project <any-existing-project-id>
+   Or skip init entirely if project is already linked (check output of: cat ~/.railway/config.json)
 3. Set required environment variables one by one:
    railway variables set ANTHROPIC_API_KEY=<from local env or placeholder>
    railway variables set SECRET_KEY=<random 32-char hex string>
