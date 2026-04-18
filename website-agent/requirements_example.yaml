@@ -22,3 +22,8 @@ deployment:
   # github_repo: ""           # optional: repo name (default: project_name)
   # railway_env_vars:         # optional: extra env vars to set in Railway
   #   GOOGLE_PLACES_API_KEY: "..."
+
+domain:
+  name: "my-recipe-blog.de"  # desired domain — agent checks availability + suggests alternatives
+  # years: 1                 # registration period (default: 1)
+  # skip: false              # set to true to skip domain registration entirely

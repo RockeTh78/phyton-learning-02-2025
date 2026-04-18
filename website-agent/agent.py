@@ -138,6 +138,99 @@ TOOLS: list[dict] = [
             "required": ["directory"],
         },
     },
+    {
+        "name": "check_domain",
+        "description": (
+            "Check if a domain name is available for registration via Cloudflare Registrar "
+            "and return the price. Requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID env vars. "
+            "Always call this before register_domain."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "description": "Full domain name, e.g. 'my-recipe-blog.de' or 'myapp.com'",
+                },
+            },
+            "required": ["domain"],
+        },
+    },
+    {
+        "name": "confirm_with_user",
+        "description": (
+            "Show the user a summary message in the terminal and wait for them to type 'ja' or 'nein'. "
+            "ALWAYS call this before register_domain. Include domain name, price, and what will happen. "
+            "Only proceed with registration if this returns CONFIRMED."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": (
+                        "Summary shown to the user. Include: domain name, price/year, "
+                        "total for chosen years, and next steps (DNS setup, Railway linking)."
+                    ),
+                },
+            },
+            "required": ["message"],
+        },
+    },
+    {
+        "name": "register_domain",
+        "description": (
+            "Register a domain via Cloudflare Registrar API. "
+            "ONLY call this after confirm_with_user returned CONFIRMED. "
+            "The Cloudflare account must have a valid payment method on file. "
+            "Requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "description": "Full domain name to register, e.g. 'my-recipe-blog.de'",
+                },
+                "years": {
+                    "type": "integer",
+                    "description": "Registration period in years (default: 1)",
+                },
+            },
+            "required": ["domain"],
+        },
+    },
+    {
+        "name": "configure_dns",
+        "description": (
+            "Add a CNAME record to a Cloudflare-managed domain to point it at the Railway deployment. "
+            "Cloudflare proxy (CDN + DDoS protection) is enabled automatically for CNAME records. "
+            "Requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID. "
+            "The domain must be registered/active in Cloudflare first."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "description": "Root domain, e.g. 'my-recipe-blog.de'",
+                },
+                "host": {
+                    "type": "string",
+                    "description": "Subdomain: 'www' for www prefix, '@' for root domain",
+                },
+                "answer": {
+                    "type": "string",
+                    "description": "CNAME target, i.e. the Railway public URL, e.g. 'myapp.up.railway.app'",
+                },
+                "record_type": {
+                    "type": "string",
+                    "description": "DNS record type: 'CNAME' (default) or 'A'",
+                },
+            },
+            "required": ["domain", "host", "answer"],
+        },
+    },
 ]
 
 # ─── System Prompt ────────────────────────────────────────────────────────────
@@ -240,13 +333,49 @@ After GitHub push succeeds, deploy via Railway CLI:
    railway domain
    Then test_endpoint on the returned URL + /login
 
-### Step 7 — Final report (no tool calls)
+### Step 7 — Domain registration (if domain configured in requirements.yaml)
+If requirements.yaml contains a `domain` field (e.g. `domain: my-recipe-blog.de`):
+
+1. **Check availability:**
+   check_domain("my-recipe-blog.de")
+   - If NOT AVAILABLE: suggest 2–3 similar alternatives and check them too.
+   - If ALREADY OWNED: skip to DNS setup.
+
+2. **Confirm with user (MANDATORY before any purchase):**
+   confirm_with_user(
+     "Domain:  my-recipe-blog.de\n"
+     "Price:   €X.XX / year (Cloudflare at-cost, no markup)\n"
+     "Action:  Register for 1 year via Cloudflare Registrar\n\n"
+     "After purchase, DNS will be configured automatically:\n"
+     "  www.my-recipe-blog.de  →  <railway-url>\n\n"
+     "Deine Kreditkarte bei Cloudflare wird belastet.\n"
+     "Bitte stelle sicher, dass eine Zahlungsmethode in deinem\n"
+     "Cloudflare-Konto hinterlegt ist (dash.cloudflare.com > Billing)."
+   )
+   - If DECLINED: skip domain registration, report in final summary.
+
+3. **Register domain:**
+   register_domain("my-recipe-blog.de", years=1)
+
+4. **Configure DNS to point to Railway:**
+   - Get Railway URL: run_command("railway domain", cwd=project_dir)
+   - Extract the <project>.up.railway.app URL from output
+   - Add Railway custom domain: run_command("railway domain add my-recipe-blog.de", cwd=project_dir)
+   - Add www CNAME:  configure_dns("my-recipe-blog.de", "www", "<project>.up.railway.app")
+   - Add root CNAME: configure_dns("my-recipe-blog.de", "@", "<project>.up.railway.app")
+
+5. **Wait note:** Tell the user DNS is live immediately via Cloudflare (no propagation wait
+   because Cloudflare manages DNS directly after registration).
+
+### Step 8 — Final report (no tool calls)
 - All files created
 - Local test results (HTTP status codes)
 - GitHub repo URL
 - Railway deployment URL
+- Custom domain (if registered): https://www.<domain>
 - Any steps that failed and require manual action
 - Environment variables still needing real values (ANTHROPIC_API_KEY if placeholder was used)
+- If Cloudflare credentials were missing: instructions for one-time setup
 
 ## CODE STANDARDS
 - Every route that modifies data: @login_required
