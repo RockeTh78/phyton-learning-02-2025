@@ -489,25 +489,9 @@ def run_agent(requirements: dict, project_dir: Path) -> None:
             time.sleep(min(2 ** iteration, 60))
             continue
 
-        # Add assistant response to conversation history — but prune large
-        # tool_use inputs (e.g. full file contents in create_file calls) so
-        # the context doesn't blow up over many iterations.
-        pruned_content = []
-        for block in response.content:
-            if block.type == "tool_use" and block.name in ("create_file", "append_to_file"):
-                # Keep only path + truncated content to save tokens
-                pruned_input = dict(block.input)
-                if "content" in pruned_input and len(pruned_input["content"]) > 200:
-                    pruned_input["content"] = pruned_input["content"][:200] + "... [truncated]"
-                pruned_content.append({
-                    "type": "tool_use",
-                    "id": block.id,
-                    "name": block.name,
-                    "input": pruned_input,
-                })
-            else:
-                pruned_content.append(block)
-        messages.append({"role": "assistant", "content": pruned_content})
+        # Add assistant response to conversation history.
+        # Keep tool_use inputs intact so the agent knows what it already created.
+        messages.append({"role": "assistant", "content": response.content})
 
         # Print any text blocks from the assistant
         for block in response.content:
@@ -545,12 +529,15 @@ def run_agent(requirements: dict, project_dir: Path) -> None:
                 result_preview = str(result)[:200]
                 print(f"  Result: {result_preview}")
 
-                # Truncate large results in history to keep context small.
-                # create_file / read_file results can be 10k+ chars — we only
-                # need the first line (OK/ERROR status) in the history.
+                # Truncate results in history to keep context small.
+                # read_file results can be 50k chars — only keep first 200.
+                # create_file results are short ("OK: created X") — keep as-is.
+                # run_command can be long — keep first 500 chars.
                 result_str = str(result)
-                if tool_name in ("create_file", "append_to_file", "read_file") and len(result_str) > 300:
-                    result_for_history = result_str[:300] + "\n... [content truncated in history]"
+                if tool_name == "read_file" and len(result_str) > 200:
+                    result_for_history = result_str[:200] + "\n... [truncated in history]"
+                elif tool_name == "run_command" and len(result_str) > 500:
+                    result_for_history = result_str[:500] + "\n... [truncated in history]"
                 else:
                     result_for_history = result_str
 
