@@ -31,6 +31,11 @@ REFERENCE_BLOG = Path("/Users/thomashoche/DEV/phyton-learning-02-2025/travel-blo
 
 MODEL = "claude-sonnet-4-6"
 
+# History truncation limits — keep results short so context stays within rate limits
+_TRUNC_READ    = 200   # read_file can return 50k chars
+_TRUNC_COMMAND = 500   # run_command output can be long
+_TRUNC_DISPLAY = 600   # assistant text shown in terminal
+
 # ─── Tool Schemas ─────────────────────────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -472,7 +477,8 @@ def run_agent(requirements: dict, project_dir: Path) -> None:
     ]
 
     iteration = 0
-    max_iterations = 60  # safety cap
+    consecutive_errors = 0
+    max_iterations = 60
 
     while iteration < max_iterations:
         iteration += 1
@@ -486,88 +492,76 @@ def run_agent(requirements: dict, project_dir: Path) -> None:
                 tools=TOOLS,
                 messages=messages,
             )
+            consecutive_errors = 0
+        except anthropic.RateLimitError:
+            consecutive_errors += 1
+            wait = min(2 ** consecutive_errors, 60)
+            print(f"API error: rate limit — waiting {wait}s")
+            time.sleep(wait)
+            iteration -= 1  # don't count the failed attempt
+            continue
         except anthropic.APIError as exc:
             print(f"API error: {exc}")
-            # Exponential back-off for rate limits
-            time.sleep(min(2 ** iteration, 60))
+            consecutive_errors += 1
+            time.sleep(min(2 ** consecutive_errors, 60))
+            iteration -= 1
             continue
 
-        # Add assistant response to history.
-        # For create_file/append_to_file: replace full content with a short summary
-        # so the agent still knows the file was created, but context stays small.
-        # The "OK: created X" result in tool_results is enough confirmation.
+        # Single pass: prune history entries, print text, collect tool calls
         pruned_content = []
+        tool_results: list[dict] = []
+
         for block in response.content:
+            # ── Prune write-heavy inputs before storing in history ──────────
             if block.type == "tool_use" and block.name in ("create_file", "append_to_file"):
-                pruned_input = {"path": block.input.get("path", ""), "content": "[written]"}
                 pruned_content.append({
                     "type": "tool_use",
                     "id": block.id,
                     "name": block.name,
-                    "input": pruned_input,
+                    "input": {"path": block.input.get("path", ""), "content": "[written]"},
                 })
             else:
                 pruned_content.append(block)
-        messages.append({"role": "assistant", "content": pruned_content})
 
-        # Print any text blocks from the assistant
-        for block in response.content:
+            # ── Print assistant text ────────────────────────────────────────
             if hasattr(block, "text"):
-                print(f"\n[Assistant]\n{block.text[:600]}")
-                if len(block.text) > 600:
+                print(f"\n[Assistant]\n{block.text[:_TRUNC_DISPLAY]}")
+                if len(block.text) > _TRUNC_DISPLAY:
                     print("  ... [truncated for display]")
 
-        # Stop if the model is done
-        if response.stop_reason == "end_turn":
-            print("\n\nAgent finished (end_turn).")
-            break
-
-        # Process tool calls
-        if response.stop_reason == "tool_use":
-            tool_results: list[dict] = []
-
-            for block in response.content:
-                if block.type != "tool_use":
-                    continue
-
-                tool_name = block.name
-                tool_input = block.input
-
-                # Show what is being called
-                safe_input = {k: (v[:120] + "...") if isinstance(v, str) and len(v) > 120 else v
-                              for k, v in tool_input.items()}
-                print(f"\n  Tool: {tool_name}")
+            # ── Execute tool calls ──────────────────────────────────────────
+            if block.type == "tool_use":
+                safe_input = {
+                    k: (v[:120] + "...") if isinstance(v, str) and len(v) > 120 else v
+                    for k, v in block.input.items()
+                }
+                print(f"\n  Tool: {block.name}")
                 print(f"  Input: {json.dumps(safe_input, ensure_ascii=False)[:200]}")
 
-                # Execute
-                result = execute_tool(tool_name, tool_input, project_dir)
+                result = execute_tool(block.name, block.input, project_dir)
+                print(f"  Result: {str(result)[:200]}")
 
-                # Show result preview
-                result_preview = str(result)[:200]
-                print(f"  Result: {result_preview}")
-
-                # Truncate results in history to keep context small.
-                # read_file results can be 50k chars — only keep first 200.
-                # create_file results are short ("OK: created X") — keep as-is.
-                # run_command can be long — keep first 500 chars.
                 result_str = str(result)
-                if tool_name == "read_file" and len(result_str) > 200:
-                    result_for_history = result_str[:200] + "\n... [truncated in history]"
-                elif tool_name == "run_command" and len(result_str) > 500:
-                    result_for_history = result_str[:500] + "\n... [truncated in history]"
-                else:
-                    result_for_history = result_str
+                if block.name == "read_file" and len(result_str) > _TRUNC_READ:
+                    result_str = result_str[:_TRUNC_READ] + "\n... [truncated in history]"
+                elif block.name == "run_command" and len(result_str) > _TRUNC_COMMAND:
+                    result_str = result_str[:_TRUNC_COMMAND] + "\n... [truncated in history]"
 
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
-                    "content": result_for_history,
+                    "content": result_str,
                 })
 
-            # Feed results back into conversation
+        messages.append({"role": "assistant", "content": pruned_content})
+
+        if response.stop_reason == "end_turn":
+            print("\n\nAgent finished (end_turn).")
+            break
+
+        if response.stop_reason == "tool_use":
             messages.append({"role": "user", "content": tool_results})
         else:
-            # Unexpected stop reason
             print(f"Unexpected stop_reason: {response.stop_reason}")
             break
 
