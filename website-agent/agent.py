@@ -249,7 +249,7 @@ Flask web application from scratch — a genuinely NEW project tailored to the t
 - Vanilla JS + CSS (no frameworks)
 - Session-based login with password from env var
 
-## REFERENCE (for technical patterns only — do NOT copy code)
+## REFERENCE (for technical patterns only — do NOT copy code verbatim)
 There is a reference Flask blog at:
   /Users/thomashoche/DEV/phyton-learning-02-2025/travel-blog/
 
@@ -258,6 +258,27 @@ paths work, how to structure the agentic loop, how SQLite migrations work,
 how the Claude API is called with vision). But you must write ALL code fresh —
 the new project must have its OWN design, its OWN database schema, its OWN
 content model, and its OWN UI suited to the topic in requirements.yaml.
+
+## AFFILIATE LINKS (always include, adapt to topic)
+The reference blog has a working affiliate.py at:
+  /Users/thomashoche/DEV/phyton-learning-02-2025/travel-blog/affiliate.py
+
+ALWAYS read this file and use it as the implementation pattern for the new
+project's affiliate.py. Adapt the affiliate providers to the topic:
+
+- For ANY topic: include Amazon product links (always relevant, tag-based matching)
+  Use AMAZON_TAG env var (default: "yoursite-21")
+- For travel/location topics: keep Booking.com, GetYourGuide, Skyscanner
+  Use BOOKING_AID, GETYOURGUIDE_PARTNER_ID, SKYSCANNER_ASSOCIATE_ID env vars
+- For food/recipe topics: replace with Amazon kitchen equipment links + recipe book links
+- For fitness/sports topics: replace with Amazon sports gear links
+- For other topics: choose 2–3 affiliate partners relevant to the domain
+
+The generated affiliate.py must:
+1. Read partner IDs from env vars (same pattern as reference)
+2. Use tag-based keyword matching to select relevant Amazon products
+3. Return list of dicts with {name, url, icon, description, category}
+4. Be called from post/detail pages to show affiliate links below content
 
 ## YOUR WORKFLOW
 
