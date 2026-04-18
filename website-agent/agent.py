@@ -489,9 +489,23 @@ def run_agent(requirements: dict, project_dir: Path) -> None:
             time.sleep(min(2 ** iteration, 60))
             continue
 
-        # Add assistant response to conversation history.
-        # Keep tool_use inputs intact so the agent knows what it already created.
-        messages.append({"role": "assistant", "content": response.content})
+        # Add assistant response to history.
+        # For create_file/append_to_file: replace full content with a short summary
+        # so the agent still knows the file was created, but context stays small.
+        # The "OK: created X" result in tool_results is enough confirmation.
+        pruned_content = []
+        for block in response.content:
+            if block.type == "tool_use" and block.name in ("create_file", "append_to_file"):
+                pruned_input = {"path": block.input.get("path", ""), "content": "[written]"}
+                pruned_content.append({
+                    "type": "tool_use",
+                    "id": block.id,
+                    "name": block.name,
+                    "input": pruned_input,
+                })
+            else:
+                pruned_content.append(block)
+        messages.append({"role": "assistant", "content": pruned_content})
 
         # Print any text blocks from the assistant
         for block in response.content:
